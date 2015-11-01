@@ -30,75 +30,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		 #
 #										 #
 ##################################################################################
-# bkeeper :: start-hyve								 #
+# bkeeper :: status-hyve								 #
 ##################################################################################
 
 EXECDIR=$(dirname $0)
 . $EXECDIR/CONFIG
 
-errmsg() {
-    echo "*** $1"
-}
+echo "Name		Status	"
+echo "--------------------------"
 
-usage() {
-    local msg=$1
-    echo "Usage: $0 [-b <hd0|cd0>] [-o <vm_os] <vm_name>"
-    [ -n "$msg" ] && errmsg "$msg"
-    exit 1
-}
+for i in $(ls $HYVESTORE)
+do
+echo -n	"$i	"
 
-#if [ `id -u` -ne 0 ]; then
-#        errmsg "This script must be executed with superuser privileges."
-#        exit 1
-#fi
-
-while getopts "b:o:" opt ; do
-        case "$opt" in
-        b)
-		HHYVEBOOT=$OPTARG
-        	;;
-        o)
-    		HHYVEOS=${OPTARG:-$HYVEOS}
-    		;;
-        h)	
-    		usage
-    		;;
-        *)
-                usage
-                ;;
-        esac
-done
-
-shift $((${OPTIND} - 1))
-
-if [ $# -ne 1 ]; then
-        usage "Hyve <vm_name> is required."
-fi
-
-HYVENAME=$(printf "%s\n" "$1" | tr A-Z a-z)
-HYVECONSOLE=$(printf "%s\n" "$HYVENAME" | md5 | tr a-z "[:xdigit:]")
-HYVEMAC=58:9c:fc:$(printf "%s\n" "$HYVENAME" | md5 | sed -e "s/\(..\)/\1:/g" | head -c 8)
-
-if [ ! -d "$HYVESTORE/$HYVENAME" ]; then
-    errmsg "Hyve $HYVENAME does not exist."
-    exit 1
-fi
-
-if [ -c "/dev/vmm/$HYVENAME" ]; then
-    errmsg "Hyve $HYVENAME is already running."
-    exit 1
-fi
-
-if [ ! -f "$HYVESTORE/$HYVENAME/$HYVENAME.config" ]; then
-    errmsg "Hyve default config is missing. Will attempt boot with default."
+if [ -c "/dev/vmm/$i" ]; then
+    echo "running"
 else
-    . $HYVESTORE/$HYVENAME/$HYVENAME.config
-    HYVEBOOT=${HHYVEBOOT:-$HYVEBOOT}
-    HYVEOS=${HHYVEOS:-$HYVEOS}
+    echo "stopped"
 fi
 
-$GRUBBHYVE -m $HYVESTORE/$HYVENAME/device.map -r $HYVEBOOT -M $HYVEMEM $HYVENAME < "$HYVEROOT/boot/grub.${HYVEBOOT}.${HYVEOS}" > /dev/null
-
-nohup $BHYVE -A -H -P -s 0:0,hostbridge -s 1:0,lpc -s 2:0,virtio-net,$HYVELINK,mac=$HYVEMAC \
-    -s 3:0,virtio-blk,$HYVESTORE/$HYVENAME/disk/disk0_$HYVENAME.img -l com1,/dev/nmdm${HYVECONSOLE}A \
-    -c $HYVECPU -m $HYVEMEM $HYVENAME >/dev/null 2>&1 &
+done
