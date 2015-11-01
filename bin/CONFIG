@@ -1,0 +1,26 @@
+#!/bin/sh
+
+#EXECUTABLES
+LOADER=/usr/sbin/bhyveload
+BHYVECTL=/usr/sbin/bhyvectl
+BHYVE=/usr/sbin/bhyve
+GRUBBHYVE=/usr/local/sbin/grub-bhyve
+
+#DIRECTORY
+HYVEROOT=/nas/bkeeper
+HYVESTORE=$HYVEROOT/datastore
+HYVEISO=$HYVEROOT/iso
+
+#GUEST DEFAULTS
+## CPU COUNT
+HYVECPU=1
+## MEMORY
+HYVEMEM=256M
+## HOST INTERFACE
+HYVELINK=tap0
+## DISK SIZE
+HYVESIZE=8GB
+## OPERATING SYSTEM (openbsd|linux|freebsd)
+HYVEOS=openbsd58
+## DEFAULT BOOT
+HYVEBOOT=hd0

@@ -1,0 +1,126 @@
+#!/bin/sh
+##################################################################################
+#										 #
+# Copyright (c) 2015, doekerqhtv						 #
+# All rights reserved.								 #
+# 										 #
+# Redistribution and use in source and binary forms, with or without		 #
+# modification, are permitted provided that the following conditions are met:	 #
+# 										 #
+# * Redistributions of source code must retain the above copyright notice, this	 #
+#   list of conditions and the following disclaimer.				 #
+# 										 #
+# * Redistributions in binary form must reproduce the above copyright notice,	 #
+#   this list of conditions and the following disclaimer in the documentation	 #
+#   and/or other materials provided with the distribution.			 #
+# 										 #
+# * Neither the name of bkeeper nor the names of its				 #
+#   contributors may be used to endorse or promote products derived from	 #
+#   this software without specific prior written permission.			 #
+# 										 #
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"	 #
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE	 #
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE #
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE	 #
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL	 #
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR	 #
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER	 #
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,	 #
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE	 #
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		 #
+#										 #
+##################################################################################
+# bkeeper :: add-new-hyve							 #
+##################################################################################
+
+EXECDIR=$(dirname $0)
+. $EXECDIR/CONFIG
+
+errmsg() {
+    echo "*** $1"
+}
+
+usage() {
+    local msg=$1
+    echo "Usage: $0 [-s <disk_size:mem_size:cpu_size:link>] [-c <iso_name>] [-o <vm_os] [-a] <vm_name>"
+    [ -n "$msg" ] && errmsg "$msg"
+    exit 1
+}
+
+#if [ `id -u` -ne 0 ]; then
+#        errmsg "This script must be executed with superuser privileges."
+#        exit 1
+#fi
+
+while getopts "s:c:o:a" opt ; do
+        case "$opt" in
+	a)	
+		HYVEAUTOSTART=1
+		;;
+        s)
+    		OFS=$IFS
+		IFS=:
+		read disk mem cpu link <<- EOF
+		$OPTARG
+		EOF
+		IFS=$OFS
+		HYVESIZE=${disk:-$HYVESIZE}
+		HYVEMEM=${mem:-$HYVEMEM}
+		HYVECPU=${cpu:-$HYVECPU}
+		HYVELINK=${link:-$HYVELINK}
+        	;;
+        c)
+                HYVECD=${OPTARG##*/}
+		if [ ! -f "$HYVEISO/$HYVECD" ]; then
+        	    usage "Hyve [-c $HYVEISO/$HYVECD] is missing."		
+		fi 
+                ;;
+        o)
+    		HYVEOS=${OPTARG:-$HYVEOS}
+    		;;
+        h)	
+    		usage
+    		;;
+        *)
+                usage
+                ;;
+        esac
+done
+
+shift $((${OPTIND} - 1))
+
+if [ $# -ne 1 ]; then
+        usage "Hyve <vm_name> is required."
+fi
+
+HYVENAME=$(printf "%s\n" "$1" | tr A-Z a-z)
+HYVECONSOLE=$(printf "%s\n" "$HYVENAME" | md5 | tr a-z "[:xdigit:]")
+
+if [ -d "$HYVESTORE/$HYVENAME" ]; then
+    usage "Hyve $HYVENAME already exists."
+fi
+
+mkdir -p $HYVESTORE/$HYVENAME/disk
+
+truncate -s $HYVESIZE "$HYVESTORE/$HYVENAME/disk/disk0_$HYVENAME.img"
+
+echo "(hd0) $HYVESTORE/$HYVENAME/disk/disk0_$HYVENAME.img" > $HYVESTORE/$HYVENAME/device.map
+
+if [ -n "$HYVECD" ]; then
+	echo "(cd0) $HYVEISO/$HYVECD" >> $HYVESTORE/$HYVENAME/device.map
+fi
+
+if [ -z "$HYVEAUTOSTART" ]; then
+    touch $HYVESTORE/$HYVENAME/$HYVENAME.autostart
+fi
+
+cat > $HYVESTORE/$HYVENAME/$HYVENAME.config <<EOF
+HYVECPU=$HYVECPU
+HYVEMEM=$HYVEMEM
+HYVELINK=$HYVELINK
+HYVEOS=$HYVEOS
+HYVEBOOT=hd0
+HYVECONSOLE=$HYVECONSOLE
+EOF
+
+echo "Hyve $HYVENAME ($HYVEOS) has been successfully created with $HYVECPU vCPU, $HYVEMEM memory, $HYVESIZE disk0 image, connected via $HYVELINK."
