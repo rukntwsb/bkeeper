@@ -1,0 +1,2 @@
+kopenbsd -h com0 -r sd0a (cd0)/5.8/amd64/bsd.rd
+boot
