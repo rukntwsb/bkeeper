@@ -39,7 +39,7 @@ EXECDIR=$(dirname $0)
 echo "Name		Status	"
 echo "--------------------------"
 
-for i in $(ls $HYVESTORE)
+for i in $(find $HYVESTORE/* -type d -maxdepth 0 -exec basename {} \;)
 do
 echo -n	"$i	"
 
